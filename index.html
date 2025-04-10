@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Genesis Entry Node</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #101820;
+      color: #f1f1f1;
+      text-align: center;
+      padding: 40px;
+    }
+    .container {
+      max-width: 600px;
+      margin: auto;
+      background: #1e2a38;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(0, 255, 200, 0.2);
+    }
+    input, button {
+      padding: 10px;
+      margin-top: 10px;
+      width: 100%;
+      border-radius: 6px;
+      border: none;
+      font-size: 1em;
+    }
+    button {
+      background-color: #00ffd5;
+      color: #000;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #00cfa4;
+    }
+    #response {
+      margin-top: 20px;
+      background: #141e2c;
+      padding: 20px;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Genesis 語義入口</h1>
+    <p>請輸入你的語義任務，我會將其轉為結構邏輯：</p>
+    <input type="text" id="userInput" placeholder="例如：我想建立一個排序器根據使用者喜好" />
+    <button onclick="processInput()">啟動 Genesis</button>
+    <div id="response"></div>
+  </div>
+
+  <script>
+    function processInput() {
+      const input = document.getElementById('userInput').value.trim();
+      const responseBox = document.getElementById('response');
+
+      if (!input) {
+        responseBox.innerHTML = '<p style="color:#ff8080">請輸入語義任務內容</p>';
+        return;
+      }
+
+      const task = analyzeSemanticInput(input);
+
+      responseBox.innerHTML = `
+        <h3>語義任務分析結果：</h3>
+        <pre>${task}</pre>
+      `;
+    }
+
+    function analyzeSemanticInput(text) {
+      if (text.includes('排序')) {
+        return `識別任務類型：排序模組
+輸入需求：使用者偏好語義
+建議模組函式：generateRanking(preferences)`;
+      } else if (text.includes('過濾') || text.includes('風險')) {
+        return `識別任務類型：風險篩選器
+輸入需求：語義判斷與過濾條件
+建議模組函式：filterByIntent(riskSignals)`;
+      } else {
+        return `任務不明，建議進行人工審核。
+建議模組函式：manualReview(text)`;
+      }
+    }
+  </script>
+</body>
+</html>
