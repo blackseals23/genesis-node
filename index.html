@@ -85,6 +85,19 @@
 建議模組函式：manualReview(text)`;
       }
     }
-  </script>
+ <script>
+  function activateGenesis() {
+    const input = document.getElementById("semanticInput").value.trim();
+    const resultDiv = document.getElementById("resultArea");
+
+    if (!input) {
+      resultDiv.innerHTML = "<span style='color:red'>請輸入語義任務內容。</span>";
+      return;
+    }
+
+    const response = 你輸入的任務是：「${input}」，我正在為你構建語義邏輯...;
+    resultDiv.innerText = response;
+  }
+ </script>
 </body>
 </html>
