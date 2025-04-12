@@ -86,5 +86,52 @@
       }
     }
  </script>
+<script>
+  async function activateGenesis() {
+  const input = document.getElementById("semanticInput").value.trim();
+  const resultDiv = document.getElementById("resultArea");
+
+  if (!input) {
+    resultDiv.innerHTML = "<span style='color:red'>請輸入語義任務內容。</span>";
+    return;
+  }
+
+  resultDiv.innerText = "正在連接 GPT-4，請稍候...";
+
+  const apiKey = "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";
+
+  try {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": Bearer ${apiKey}
+      },
+      body: JSON.stringify({
+        model: "gpt-4",
+        messages: [
+          {
+            role: "system",
+            content: "你是一個語義結構專家，請根據使用者輸入的語義任務，分析任務目的、使用情境，並建議對應的語義模組。"
+          },
+          {
+            role: "user",
+            content: input
+          }
+        ],
+        temperature: 0.7
+      })
+    });
+
+    const data = await response.json();
+    const reply = data.choices?.[0]?.message?.content || "無法取得回應，請稍後再試。";
+    resultDiv.innerText = reply;
+
+  } catch (error) {
+    resultDiv.innerHTML = "<span style='color:red'>系統錯誤，請確認 API 金鑰或稍後再試。</span>";
+    console.error("GPT 錯誤：", error);
+  }
+}
+</script>
 </body>
 </html>
