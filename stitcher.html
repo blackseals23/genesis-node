@@ -1,0 +1,1546 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Auto Suno Stitcher 自動無縫拼接</title>
+  <style>
+    :root {
+      --bg: #07070f;
+      --bg2: #0d0d1a;
+      --card: #111120;
+      --card2: #171728;
+      --cyan: #00ffd5;
+      --purple: #7c3aed;
+      --pink: #e879f9;
+      --yellow: #fbbf24;
+      --red: #f87171;
+      --green: #34d399;
+      --text: #e2e8f0;
+      --muted: #5a6a82;
+      --border: #1e2a3a;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── HEADER ── */
+    .header {
+      background: rgba(7,7,15,0.97);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 13px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky; top: 0; z-index: 200;
+    }
+    .logo {
+      font-size: 17px; font-weight: 800;
+      background: linear-gradient(90deg, var(--cyan), var(--purple));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .header-right { display: flex; gap: 8px; }
+    .hbtn {
+      background: var(--card2); border: 1px solid var(--border);
+      color: var(--muted); padding: 7px 13px; border-radius: 8px;
+      font-size: 12px; cursor: pointer; transition: all 0.2s;
+    }
+    .hbtn:hover { border-color: var(--cyan); color: var(--cyan); }
+    .hbtn.active { border-color: var(--cyan); color: var(--cyan); background: rgba(0,255,213,0.08); }
+
+    /* ── VIEWS ── */
+    .view { display: none; padding: 20px; max-width: 780px; margin: 0 auto; padding-bottom: 60px; }
+    .view.active { display: block; }
+
+    /* ── BACK BTN ── */
+    .back-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--card); border: 1px solid var(--border);
+      color: var(--muted); padding: 8px 14px; border-radius: 9px;
+      font-size: 13px; cursor: pointer; transition: all 0.2s;
+      margin-bottom: 18px; touch-action: manipulation;
+    }
+    .back-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+
+    /* ── CARDS ── */
+    .card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 18px; padding: 20px; margin-bottom: 14px;
+    }
+    .card-title {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 1.2px; color: var(--muted); margin-bottom: 16px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--cyan); flex-shrink: 0; }
+    .dot.p { background: var(--purple); }
+    .dot.r { background: var(--red); }
+    .dot.g { background: var(--green); }
+
+    /* ── UPLOAD ZONE ── */
+    .upload-zone {
+      border: 2px dashed var(--border); border-radius: 24px;
+      padding: 52px 24px; text-align: center; cursor: pointer;
+      transition: all 0.3s; background: var(--card); position: relative; overflow: hidden;
+    }
+    .upload-zone::after {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(ellipse at 50% 0%, rgba(0,255,213,0.04) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .upload-zone.drag-over { border-color: var(--cyan); background: rgba(0,255,213,0.05); }
+    .upload-icon { font-size: 58px; display: block; margin-bottom: 16px; }
+    .upload-title {
+      font-size: 22px; font-weight: 800; margin-bottom: 10px;
+      background: linear-gradient(135deg, var(--cyan), var(--purple));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .upload-sub { color: var(--muted); font-size: 14px; margin-bottom: 24px; line-height: 1.7; }
+    .upload-btn {
+      background: linear-gradient(135deg, var(--cyan), var(--purple));
+      color: #000; border: none; padding: 16px 36px; border-radius: 14px;
+      font-size: 16px; font-weight: 800; cursor: pointer;
+      display: inline-block; touch-action: manipulation;
+    }
+    .upload-btn:active { transform: scale(0.97); }
+    .format-tags { display: flex; gap: 6px; justify-content: center; margin-top: 18px; flex-wrap: wrap; }
+    .format-tag {
+      background: var(--card2); border: 1px solid var(--border);
+      padding: 4px 10px; border-radius: 20px; font-size: 11px; color: var(--muted);
+    }
+    #fileInput { display: none; }
+
+    /* ── CLIP LIST ── */
+    .clip-list { display: flex; flex-direction: column; gap: 10px; }
+    .clip-item {
+      background: var(--card2); border: 1px solid var(--border);
+      border-radius: 14px; padding: 14px 16px;
+      display: flex; align-items: center; gap: 12px;
+      cursor: grab; transition: all 0.2s; position: relative;
+    }
+    .clip-item.dragging { opacity: 0.5; border-style: dashed; }
+    .clip-item.drag-over-item { border-color: var(--cyan); }
+    .clip-thumb {
+      width: 72px; height: 40px; border-radius: 8px;
+      background: var(--border); flex-shrink: 0;
+      overflow: hidden; position: relative;
+    }
+    .clip-thumb video, .clip-thumb canvas {
+      width: 100%; height: 100%; object-fit: cover;
+    }
+    .clip-info { flex: 1; min-width: 0; }
+    .clip-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .clip-meta { font-size: 11px; color: var(--muted); margin-top: 3px; }
+    .clip-num {
+      width: 28px; height: 28px; border-radius: 8px;
+      background: rgba(0,255,213,0.1); border: 1px solid rgba(0,255,213,0.2);
+      color: var(--cyan); font-size: 13px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .clip-del {
+      background: transparent; border: none; color: var(--muted);
+      font-size: 18px; cursor: pointer; padding: 4px; flex-shrink: 0;
+      transition: color 0.2s;
+    }
+    .clip-del:hover { color: var(--red); }
+
+    .handle { color: var(--muted); font-size: 18px; cursor: grab; flex-shrink: 0; user-select: none; }
+
+    .add-more-btn {
+      background: transparent; border: 1px dashed var(--border);
+      color: var(--muted); padding: 12px; border-radius: 12px;
+      font-size: 13px; cursor: pointer; width: 100%;
+      transition: all 0.2s; margin-top: 4px;
+    }
+    .add-more-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+
+    /* ── PRIMARY BTN ── */
+    .primary-btn {
+      background: linear-gradient(135deg, var(--cyan), var(--purple));
+      color: #000; border: none; padding: 15px; border-radius: 13px;
+      font-size: 15px; font-weight: 800; cursor: pointer; width: 100%;
+      transition: all 0.2s; margin-top: 4px; touch-action: manipulation;
+    }
+    .primary-btn:active { transform: scale(0.98); }
+    .primary-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .secondary-btn {
+      background: transparent; border: 1px solid var(--cyan);
+      color: var(--cyan); padding: 13px; border-radius: 12px;
+      font-size: 14px; font-weight: 700; cursor: pointer; width: 100%;
+      transition: all 0.2s; margin-top: 8px; touch-action: manipulation;
+    }
+    .secondary-btn:hover { background: rgba(0,255,213,0.08); }
+
+    /* ── ANALYZE VIEW ── */
+    .analyze-steps { display: flex; flex-direction: column; gap: 10px; }
+    .analyze-step {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 14px 16px;
+      display: flex; align-items: flex-start; gap: 12px;
+    }
+    .step-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+    .step-body { flex: 1; }
+    .step-title { font-size: 14px; font-weight: 600; }
+    .step-sub { font-size: 12px; color: var(--muted); margin-top: 4px; line-height: 1.5; }
+    .step-status {
+      font-size: 12px; font-weight: 700; flex-shrink: 0; margin-top: 2px;
+    }
+    .step-status.pending { color: var(--muted); }
+    .step-status.running { color: var(--yellow); }
+    .step-status.done { color: var(--green); }
+    .step-status.error { color: var(--red); }
+
+    .progress-bar-bg {
+      width: 100%; height: 5px; background: var(--card2);
+      border-radius: 3px; overflow: hidden; margin-top: 10px;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--cyan), var(--purple));
+      border-radius: 3px; transition: width 0.4s;
+    }
+
+    .pair-analysis { margin-top: 12px; }
+    .pair-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; background: var(--card); border: 1px solid var(--border);
+      border-radius: 10px; margin-bottom: 8px; font-size: 13px;
+    }
+    .pair-badge {
+      background: var(--card2); border: 1px solid var(--border);
+      border-radius: 6px; padding: 4px 8px; font-size: 11px;
+      font-weight: 700; color: var(--cyan); flex-shrink: 0;
+    }
+    .pair-result { flex: 1; color: var(--muted); }
+    .pair-result.found { color: var(--green); }
+    .pair-result.none { color: var(--yellow); }
+    .pair-conf { font-size: 11px; color: var(--muted); flex-shrink: 0; }
+
+    /* ── REVIEW VIEW ── */
+    .overlap-summary {
+      background: linear-gradient(135deg, rgba(0,255,213,0.08), rgba(124,58,237,0.08));
+      border: 1px solid rgba(0,255,213,0.2);
+      border-radius: 14px; padding: 16px; margin-bottom: 14px;
+    }
+    .overlap-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 0; border-bottom: 1px solid var(--border);
+    }
+    .overlap-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .overlap-badge {
+      width: 36px; height: 36px; border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 800; flex-shrink: 0;
+    }
+    .overlap-badge.found { background: rgba(52,211,153,0.15); border: 1px solid rgba(52,211,153,0.3); color: var(--green); }
+    .overlap-badge.none { background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.3); color: var(--yellow); }
+    .overlap-info { flex: 1; }
+    .overlap-label { font-size: 13px; font-weight: 600; }
+    .overlap-detail { font-size: 12px; color: var(--muted); margin-top: 3px; }
+    .overlap-sec { font-size: 14px; font-weight: 800; color: var(--cyan); flex-shrink: 0; }
+
+    .repair-level {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 4px;
+    }
+    .level-btn {
+      background: var(--card2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px 8px; text-align: center;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .level-btn.active { border-color: var(--cyan); background: rgba(0,255,213,0.08); }
+    .level-name { font-size: 13px; font-weight: 700; color: var(--text); }
+    .level-desc { font-size: 11px; color: var(--muted); margin-top: 4px; line-height: 1.4; }
+
+    .audio-replace-box {
+      background: var(--card2); border: 1px solid var(--border);
+      border-radius: 12px; padding: 14px; margin-top: 4px;
+    }
+    .switch-row { display: flex; align-items: center; justify-content: space-between; }
+    .switch-label { font-size: 14px; font-weight: 600; }
+    .switch {
+      width: 44px; height: 24px; border-radius: 12px;
+      background: var(--border); position: relative; cursor: pointer;
+      transition: background 0.2s; flex-shrink: 0;
+    }
+    .switch.on { background: var(--cyan); }
+    .switch::after {
+      content: ''; position: absolute;
+      width: 18px; height: 18px; border-radius: 9px;
+      background: #fff; top: 3px; left: 3px; transition: left 0.2s;
+    }
+    .switch.on::after { left: 23px; }
+    .drop-audio-zone {
+      border: 1px dashed var(--border); border-radius: 10px;
+      padding: 14px; text-align: center; margin-top: 12px;
+      font-size: 13px; color: var(--muted); cursor: pointer;
+      transition: all 0.2s; display: none;
+    }
+    .drop-audio-zone.show { display: block; }
+    .drop-audio-zone:hover { border-color: var(--purple); color: var(--purple); }
+
+    .rename-box {
+      background: var(--card2); border: 1px solid var(--border);
+      border-radius: 12px; padding: 14px; margin-top: 4px;
+    }
+    .text-input {
+      width: 100%; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 9px; color: var(--text); padding: 12px;
+      font-size: 14px; margin-top: 8px; transition: border-color 0.2s;
+    }
+    .text-input:focus { outline: none; border-color: var(--cyan); }
+
+    /* ── EXPORT VIEW ── */
+    .export-log {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 12px; padding: 16px; font-size: 12px;
+      font-family: 'SF Mono','Fira Code','Consolas',monospace;
+      max-height: 280px; overflow-y: auto; color: var(--muted); line-height: 1.8;
+    }
+    .log-line { display: block; }
+    .log-line.info { color: var(--muted); }
+    .log-line.ok { color: var(--green); }
+    .log-line.warn { color: var(--yellow); }
+    .log-line.error { color: var(--red); }
+    .log-line.highlight { color: var(--cyan); font-weight: 700; }
+
+    .big-progress {
+      text-align: center; padding: 32px 20px;
+    }
+    .big-spinner {
+      width: 72px; height: 72px; border: 3px solid var(--border);
+      border-top-color: var(--cyan); border-radius: 50%;
+      animation: spin 0.75s linear infinite; margin: 0 auto 20px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .big-progress-title { font-size: 18px; font-weight: 700; color: var(--cyan); margin-bottom: 8px; }
+    .big-progress-sub { font-size: 13px; color: var(--muted); }
+
+    /* ── DONE VIEW ── */
+    .done-hero { text-align: center; padding: 32px 20px 0; }
+    .done-icon { font-size: 72px; display: block; margin-bottom: 16px; }
+    .done-title {
+      font-size: 26px; font-weight: 800; margin-bottom: 10px;
+      background: linear-gradient(135deg, var(--cyan), var(--purple));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .done-sub { color: var(--muted); font-size: 14px; margin-bottom: 24px; }
+    .download-btn {
+      background: linear-gradient(135deg, var(--cyan), var(--purple));
+      color: #000; border: none; padding: 18px 40px; border-radius: 16px;
+      font-size: 18px; font-weight: 900; cursor: pointer;
+      display: block; width: 100%; max-width: 360px; margin: 0 auto;
+      touch-action: manipulation; transition: all 0.2s;
+    }
+    .download-btn:active { transform: scale(0.97); }
+
+    .stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    @media (min-width: 480px) { .stat-grid { grid-template-columns: repeat(4, 1fr); } }
+    .stat-box {
+      background: var(--card2); border-radius: 12px;
+      padding: 14px; text-align: center;
+    }
+    .stat-val {
+      font-size: 24px; font-weight: 900;
+      background: linear-gradient(135deg, var(--cyan), var(--purple));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .stat-lbl { font-size: 11px; color: var(--muted); margin-top: 5px; }
+
+    /* ── TOAST ── */
+    .toast {
+      position: fixed; bottom: 28px; left: 50%;
+      transform: translateX(-50%) translateY(90px);
+      background: var(--cyan); color: #000;
+      padding: 12px 22px; border-radius: 12px;
+      font-weight: 800; font-size: 14px;
+      transition: transform 0.3s; z-index: 1000; white-space: nowrap;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* ── FFMPEG LOAD NOTICE ── */
+    .ffmpeg-notice {
+      background: rgba(124,58,237,0.1); border: 1px solid rgba(124,58,237,0.3);
+      border-radius: 10px; padding: 12px 14px; font-size: 12px; color: #a78bfa;
+      margin-bottom: 12px; line-height: 1.5;
+    }
+
+    /* ── VIDEO PREVIEW ── */
+    .preview-player {
+      width: 100%; border-radius: 12px; background: #000;
+      max-height: 280px; display: block;
+    }
+
+    /* ── MISC ── */
+    .sub-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 13px;
+    }
+    .sub-row:last-child { border-bottom: none; }
+    .sub-label { color: var(--muted); }
+    .sub-val { font-weight: 700; }
+    .sub-val.cyan { color: var(--cyan); }
+    .sub-val.green { color: var(--green); }
+    .sub-val.yellow { color: var(--yellow); }
+
+    .section-title { font-size: 17px; font-weight: 800; margin-bottom: 14px; }
+
+    .pair-preview-row {
+      background: var(--card2); border: 1px solid var(--border);
+      border-radius: 12px; padding: 14px; margin-bottom: 10px;
+    }
+    .pair-preview-label { font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
+    .pair-preview-bars { display: flex; gap: 3px; height: 40px; align-items: center; }
+    .wf-bar { flex: 1; border-radius: 1px; min-height: 2px; background: var(--purple); opacity: 0.6; }
+    .wf-bar.highlight { background: var(--cyan); opacity: 1; }
+    .cut-marker { width: 2px; background: var(--red); align-self: stretch; border-radius: 1px; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">✂️ Auto Stitcher</div>
+  <div class="header-right">
+    <a href="index.html" style="text-decoration:none">
+      <button class="hbtn">🎵 Music DNA</button>
+    </a>
+  </div>
+</div>
+
+<!-- ═══════════════ VIEW: UPLOAD ═══════════════ -->
+<div id="vUpload" class="view active">
+
+  <div class="upload-zone" id="uploadZone">
+    <span class="upload-icon">🎬</span>
+    <div class="upload-title">Suno 視頻自動拼接</div>
+    <div class="upload-sub">
+      上傳多個 Suno 視頻片段<br>
+      系統自動分析重疊 → 剪掉重複 → 無縫拼接<br>
+      一鍵下載完整 MP4
+    </div>
+    <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+      📱 選擇視頻（可多選）
+    </button>
+    <div class="format-tags">
+      <span class="format-tag">MP4</span>
+      <span class="format-tag">MOV</span>
+      <span class="format-tag">M4V</span>
+      <span class="format-tag">WebM</span>
+      <span class="format-tag">AVI</span>
+    </div>
+  </div>
+  <input type="file" id="fileInput" accept="video/*" multiple>
+
+  <div id="clipListSection" style="display:none;margin-top:16px">
+    <div class="card">
+      <div class="card-title"><span class="dot"></span>已選擇的視頻（拖動可排序）</div>
+      <div class="clip-list" id="clipList"></div>
+      <button class="add-more-btn" onclick="document.getElementById('fileInput').click()">
+        ＋ 繼續添加視頻
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="dot p"></span>分析設定</div>
+      <div class="sub-row">
+        <span class="sub-label">分析窗口（每段前後）</span>
+        <span class="sub-val cyan" id="windowLabel">15 秒</span>
+      </div>
+      <input type="range" id="windowSlider" min="5" max="25" value="15" step="1"
+        style="width:100%;accent-color:var(--cyan);margin-top:8px"
+        oninput="document.getElementById('windowLabel').textContent=this.value+' 秒'">
+      <div class="sub-row" style="margin-top:12px">
+        <span class="sub-label">最低重疊閾值</span>
+        <span class="sub-val cyan">0.80 信心度</span>
+      </div>
+      <div class="sub-row">
+        <span class="sub-label">100% 相同文件</span>
+        <span class="sub-val yellow">詢問跳過</span>
+      </div>
+    </div>
+
+    <button class="primary-btn" id="startAnalyzeBtn" onclick="startAnalysis()">
+      🔍 開始自動分析
+    </button>
+  </div>
+
+</div>
+
+<!-- ═══════════════ VIEW: ANALYZE ═══════════════ -->
+<div id="vAnalyze" class="view">
+  <button class="back-btn" onclick="showView('vUpload')">← 返回上傳</button>
+
+  <div class="card">
+    <div class="card-title"><span class="dot"></span>分析進度</div>
+    <div class="big-progress">
+      <div class="big-spinner"></div>
+      <div class="big-progress-title" id="analyzeTitle">初始化中...</div>
+      <div class="big-progress-sub" id="analyzeSubtitle">請稍候，正在處理音頻數據</div>
+      <div class="progress-bar-bg" style="margin-top:16px">
+        <div class="progress-bar-fill" id="analyzeBar" style="width:0%"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="dot"></span>分析步驟</div>
+    <div class="analyze-steps" id="analyzeSteps"></div>
+  </div>
+
+  <div class="card" id="pairAnalysisCard" style="display:none">
+    <div class="card-title"><span class="dot p"></span>逐段分析結果</div>
+    <div class="pair-analysis" id="pairAnalysis"></div>
+  </div>
+</div>
+
+<!-- ═══════════════ VIEW: REVIEW ═══════════════ -->
+<div id="vReview" class="view">
+  <button class="back-btn" onclick="showView('vUpload')">← 重新選擇</button>
+
+  <div class="card">
+    <div class="card-title"><span class="dot g"></span>分析完成 — 重疊檢測結果</div>
+    <div id="overlapSummary"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="dot"></span>視頻預覽（拼接前）</div>
+    <video class="preview-player" id="previewPlayer" controls></video>
+    <div style="display:flex;gap:8px;margin-top:10px;overflow-x:auto" id="previewThumbs"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="dot p"></span>連接點波形預覽</div>
+    <div id="jointPreviews"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="dot"></span>修復等級</div>
+    <div class="repair-level">
+      <div class="level-btn" id="lvl1" onclick="setLevel(1)">
+        <div class="level-name">Level 1</div>
+        <div class="level-desc">輕度<br>只剪重複<br>保持原音</div>
+      </div>
+      <div class="level-btn active" id="lvl2" onclick="setLevel(2)">
+        <div class="level-name">Level 2 ✓</div>
+        <div class="level-desc">標準（推薦）<br>自動剪接<br>輕微 Crossfade</div>
+      </div>
+      <div class="level-btn" id="lvl3" onclick="setLevel(3)">
+        <div class="level-name">Level 3</div>
+        <div class="level-desc">強力修復<br>大幅剪接<br>300-800ms 過渡</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="dot p"></span>音頻設定</div>
+    <div class="audio-replace-box">
+      <div class="switch-row">
+        <div>
+          <div class="switch-label">靜音原視頻音頻</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:3px">去除所有原本聲音</div>
+        </div>
+        <div class="switch" id="muteSwitch" onclick="toggleSwitch('muteSwitch')"></div>
+      </div>
+    </div>
+    <div class="audio-replace-box" style="margin-top:8px">
+      <div class="switch-row">
+        <div>
+          <div class="switch-label">替換為新音頻</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:3px">上傳 MP3 作為背景音樂</div>
+        </div>
+        <div class="switch" id="audioSwitch" onclick="toggleSwitch('audioSwitch');toggleAudioDrop()"></div>
+      </div>
+      <div class="drop-audio-zone" id="audioDropZone" onclick="document.getElementById('audioFileInput').click()">
+        🎵 點擊上傳 MP3 / AAC / WAV<br>
+        <span id="audioFileName" style="color:var(--cyan);font-weight:700"></span>
+      </div>
+      <input type="file" id="audioFileInput" accept="audio/*" style="display:none">
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="dot"></span>下載設定</div>
+    <div class="rename-box">
+      <div style="font-size:14px;font-weight:600">輸出文件名</div>
+      <input class="text-input" id="outputName" placeholder="例如：我的完整歌曲" value="">
+      <div style="font-size:11px;color:var(--muted);margin-top:6px">系統會自動添加 _完整版.mp4</div>
+    </div>
+  </div>
+
+  <div class="ffmpeg-notice">
+    ⚙️ 導出時需要下載 FFmpeg 引擎（約 25 MB），僅首次需要，之後會緩存。
+  </div>
+
+  <button class="primary-btn" onclick="startExport()">
+    ⚡ 開始導出完整視頻
+  </button>
+  <button class="secondary-btn" onclick="startAnalysis(true)">
+    🔄 重新分析
+  </button>
+</div>
+
+<!-- ═══════════════ VIEW: EXPORT ═══════════════ -->
+<div id="vExport" class="view">
+  <button class="back-btn" onclick="showView('vReview')">← 返回編輯</button>
+
+  <div class="card">
+    <div class="card-title"><span class="dot"></span>導出進度</div>
+    <div class="big-progress">
+      <div class="big-spinner"></div>
+      <div class="big-progress-title" id="exportTitle">載入引擎...</div>
+      <div class="big-progress-sub" id="exportSub">正在初始化 FFmpeg</div>
+      <div class="progress-bar-bg" style="margin-top:16px">
+        <div class="progress-bar-fill" id="exportBar" style="width:0%"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="dot p"></span>處理日誌</div>
+    <div class="export-log" id="exportLog"></div>
+  </div>
+</div>
+
+<!-- ═══════════════ VIEW: DONE ═══════════════ -->
+<div id="vDone" class="view">
+  <button class="back-btn" onclick="showView('vUpload');resetAll()">← 處理新視頻</button>
+
+  <div class="done-hero">
+    <span class="done-icon">🎉</span>
+    <div class="done-title">拼接完成！</div>
+    <div class="done-sub" id="doneSub">完整視頻已就緒，點擊下載</div>
+  </div>
+
+  <div class="card" style="margin-top:20px">
+    <div class="card-title"><span class="dot g"></span>輸出統計</div>
+    <div class="stat-grid" id="doneStats"></div>
+    <div style="margin-top:14px" id="doneDetails"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="dot"></span>預覽完整視頻</div>
+    <video class="preview-player" id="finalPreview" controls></video>
+  </div>
+
+  <div style="margin-top:16px">
+    <button class="download-btn" id="downloadBtn">⬇️ 下載 MP4</button>
+    <button class="secondary-btn" style="margin-top:12px" onclick="showView('vUpload');resetAll()">
+      ＋ 處理另一組視頻
+    </button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.0/dist/ffmpeg.min.js"></script>
+<script>
+/* ══════════════════════════════════════════════
+   STATE
+══════════════════════════════════════════════ */
+let clips = [];         // { file, name, duration, url, audioBuffer }
+let pairResults = [];   // { i, j, overlapSec, confidence, hasOverlap, audioSim, frameSim }
+let repairLevel = 2;
+let outputBlob = null;
+let audioCtx = null;
+let ffmpegLoaded = false;
+let replaceAudioFile = null;
+let draggingIdx = null;
+
+/* ══════════════════════════════════════════════
+   UTILITY
+══════════════════════════════════════════════ */
+function showView(id) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+function showToast(msg, ms = 2200) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), ms);
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function fmtDur(s) {
+  if (!s || isNaN(s)) return '—';
+  const m = Math.floor(s / 60);
+  return `${m}:${String(Math.floor(s % 60)).padStart(2,'0')}`;
+}
+
+function fmtBytes(b) {
+  return b < 1048576 ? `${(b/1024).toFixed(1)} KB` : `${(b/1048576).toFixed(1)} MB`;
+}
+
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+function log(msg, type = 'info') {
+  const el = document.getElementById('exportLog');
+  if (!el) return;
+  const span = document.createElement('span');
+  span.className = `log-line ${type}`;
+  span.textContent = `[${new Date().toLocaleTimeString()}] ${msg}\n`;
+  el.appendChild(span);
+  el.scrollTop = el.scrollHeight;
+}
+
+function setExportProgress(pct, title, sub) {
+  document.getElementById('exportBar').style.width = pct + '%';
+  if (title) document.getElementById('exportTitle').textContent = title;
+  if (sub) document.getElementById('exportSub').textContent = sub;
+}
+
+function setAnalyzeProgress(pct, title, sub) {
+  document.getElementById('analyzeBar').style.width = pct + '%';
+  if (title) document.getElementById('analyzeTitle').textContent = title;
+  if (sub) document.getElementById('analyzeSubtitle').textContent = sub;
+}
+
+/* ══════════════════════════════════════════════
+   FFT (Cooley-Tukey)
+══════════════════════════════════════════════ */
+function fft(re, im) {
+  const n = re.length;
+  for (let i = 1, j = 0; i < n; i++) {
+    let bit = n >> 1;
+    for (; j & bit; bit >>= 1) j ^= bit;
+    j ^= bit;
+    if (i < j) {
+      [re[i],re[j]] = [re[j],re[i]];
+      [im[i],im[j]] = [im[j],im[i]];
+    }
+  }
+  for (let len = 2; len <= n; len <<= 1) {
+    const ang = -2 * Math.PI / len;
+    const wc = Math.cos(ang), ws = Math.sin(ang);
+    for (let i = 0; i < n; i += len) {
+      let wr = 1, wi = 0;
+      for (let j = 0; j < len >> 1; j++) {
+        const half = len >> 1;
+        const tr = re[i+j+half]*wr - im[i+j+half]*wi;
+        const ti = re[i+j+half]*wi + im[i+j+half]*wr;
+        re[i+j+half] = re[i+j]-tr; im[i+j+half] = im[i+j]-ti;
+        re[i+j] += tr; im[i+j] += ti;
+        [wr, wi] = [wr*wc - wi*ws, wr*ws + wi*wc];
+      }
+    }
+  }
+}
+
+function nextPow2(n) { let p = 1; while (p < n) p <<= 1; return p; }
+
+/* ══════════════════════════════════════════════
+   AUDIO ANALYSIS
+══════════════════════════════════════════════ */
+async function extractAudioBuffer(file) {
+  const ctx = getAudioCtx();
+  const ab = await file.arrayBuffer();
+  try {
+    return await ctx.decodeAudioData(ab);
+  } catch (e) {
+    throw new Error(`無法解碼音頻：${e.message}`);
+  }
+}
+
+function downsampleMono(audioBuffer, targetRate = 1000) {
+  const src = audioBuffer.numberOfChannels > 1
+    ? mixToMono(audioBuffer)
+    : audioBuffer.getChannelData(0);
+
+  const ratio = Math.round(audioBuffer.sampleRate / targetRate);
+  const outLen = Math.floor(src.length / ratio);
+  const out = new Float32Array(outLen);
+  for (let i = 0; i < outLen; i++) {
+    let sum = 0;
+    for (let j = 0; j < ratio && (i*ratio+j) < src.length; j++) sum += src[i*ratio+j];
+    out[i] = sum / ratio;
+  }
+  return { data: out, rate: audioBuffer.sampleRate / ratio };
+}
+
+function mixToMono(audioBuffer) {
+  const n = audioBuffer.length;
+  const out = new Float32Array(n);
+  const ch = audioBuffer.numberOfChannels;
+  for (let c = 0; c < ch; c++) {
+    const d = audioBuffer.getChannelData(c);
+    for (let i = 0; i < n; i++) out[i] += d[i] / ch;
+  }
+  return out;
+}
+
+// Cosine similarity between two Float32Arrays of same length
+function cosineSim(a, b) {
+  let ab = 0, a2 = 0, b2 = 0;
+  const n = Math.min(a.length, b.length);
+  for (let i = 0; i < n; i++) {
+    ab += a[i]*b[i];
+    a2 += a[i]*a[i];
+    b2 += b[i]*b[i];
+  }
+  const denom = Math.sqrt(a2 * b2);
+  return denom < 1e-9 ? 0 : ab / denom;
+}
+
+// Normalize a segment to unit energy
+function normalize(arr) {
+  let rms = 0;
+  for (const v of arr) rms += v*v;
+  rms = Math.sqrt(rms / arr.length);
+  if (rms > 1e-9) for (let i = 0; i < arr.length; i++) arr[i] /= rms;
+}
+
+/**
+ * Find overlap: tail of A vs head of B.
+ * Returns { overlapSec, confidence, hasOverlap }
+ * Searches from 0.3s to maxSec in 50ms steps.
+ */
+function findAudioOverlap(dsA, dsB, dsRate, maxSec = 15) {
+  const maxSamples = Math.min(
+    Math.floor(maxSec * dsRate),
+    dsA.data.length,
+    dsB.data.length
+  );
+  const minSamples = Math.floor(0.3 * dsRate);
+  const step = Math.max(1, Math.floor(0.05 * dsRate)); // 50ms steps
+
+  let bestD = 0, bestScore = 0;
+  const scores = [];
+
+  for (let d = minSamples; d <= maxSamples; d += step) {
+    // tail of A: last d samples
+    const tailA = dsA.data.slice(dsA.data.length - d);
+    // head of B: first d samples
+    const headB = dsB.data.slice(0, d);
+
+    // Normalize copies
+    const normA = tailA.slice(); normalize(normA);
+    const normB = headB.slice(); normalize(normB);
+
+    const score = cosineSim(normA, normB);
+    scores.push({ d, score });
+    if (score > bestScore) { bestScore = score; bestD = d; }
+  }
+
+  // Check if it's a local peak (not just cumulative noise)
+  const peakSec = bestD / dsRate;
+  const hasOverlap = bestScore > 0.80 && peakSec > 0.3;
+
+  // Refine around best (fine search ±2 steps at full resolution)
+  if (hasOverlap) {
+    const fineStep = Math.max(1, Math.floor(0.01 * dsRate));
+    const fineMin = Math.max(minSamples, bestD - step);
+    const fineMax = Math.min(maxSamples, bestD + step);
+    for (let d = fineMin; d <= fineMax; d += fineStep) {
+      const tailA = dsA.data.slice(dsA.data.length - d);
+      const headB = dsB.data.slice(0, d);
+      const normA = tailA.slice(); normalize(normA);
+      const normB = headB.slice(); normalize(normB);
+      const score = cosineSim(normA, normB);
+      if (score > bestScore) { bestScore = score; bestD = d; }
+    }
+  }
+
+  return {
+    overlapSec: bestD / dsRate,
+    confidence: bestScore,
+    hasOverlap: bestScore > 0.80 && bestD / dsRate > 0.25
+  };
+}
+
+/* ══════════════════════════════════════════════
+   FRAME ANALYSIS
+══════════════════════════════════════════════ */
+async function extractFrame(videoUrl, timeSec, w = 64, h = 36) {
+  return new Promise((resolve) => {
+    const video = document.createElement('video');
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    video.muted = true;
+    video.src = videoUrl;
+    video.preload = 'metadata';
+
+    const done = () => {
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, w, h);
+      const d = ctx.getImageData(0, 0, w, h).data;
+      const gray = new Uint8Array(w * h);
+      for (let i = 0; i < gray.length; i++) {
+        gray[i] = Math.round(0.299*d[i*4] + 0.587*d[i*4+1] + 0.114*d[i*4+2]);
+      }
+      resolve(gray);
+    };
+
+    video.addEventListener('loadedmetadata', () => {
+      video.currentTime = Math.min(timeSec, video.duration - 0.1);
+    }, { once: true });
+    video.addEventListener('seeked', done, { once: true });
+    video.addEventListener('error', () => resolve(null), { once: true });
+    video.load();
+  });
+}
+
+function frameSimilarity(gray1, gray2) {
+  if (!gray1 || !gray2) return 0;
+  const n = Math.min(gray1.length, gray2.length);
+  let diff = 0;
+  for (let i = 0; i < n; i++) diff += Math.abs(gray1[i] - gray2[i]);
+  return 1 - (diff / (n * 255));
+}
+
+/* ══════════════════════════════════════════════
+   UPLOAD & CLIP MANAGEMENT
+══════════════════════════════════════════════ */
+const uploadZone = document.getElementById('uploadZone');
+const fileInput  = document.getElementById('fileInput');
+
+uploadZone.addEventListener('dragover',  e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('drag-over');
+  addFiles(Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('video/')));
+});
+fileInput.addEventListener('change', () => {
+  addFiles(Array.from(fileInput.files));
+  fileInput.value = '';
+});
+
+document.getElementById('audioFileInput').addEventListener('change', function() {
+  if (this.files[0]) {
+    replaceAudioFile = this.files[0];
+    document.getElementById('audioFileName').textContent = this.files[0].name;
+  }
+});
+
+async function addFiles(files) {
+  for (const file of files) {
+    if (!file.type.startsWith('video/')) continue;
+
+    // Check if 100% duplicate
+    const dup = clips.find(c => c.file.name === file.name && c.file.size === file.size);
+    if (dup) {
+      if (!confirm(`"${file.name}" 和已上傳的文件完全相同（100%）。要跳過嗎？`)) {
+        continue;
+      }
+    }
+
+    const url = URL.createObjectURL(file);
+    const duration = await getVideoDuration(url);
+    clips.push({ file, name: file.name, duration, url, audioBuffer: null });
+  }
+
+  renderClipList();
+  if (clips.length > 0) {
+    document.getElementById('clipListSection').style.display = 'block';
+
+    // Auto-suggest output name from first file
+    const nameInput = document.getElementById('outputName');
+    if (!nameInput.value && clips[0]) {
+      const base = clips[0].name.replace(/\.[^.]+$/, '');
+      // Check if it looks like a system ID (long random string)
+      if (base.length > 30 || /^[a-f0-9_]{20,}$/i.test(base)) {
+        nameInput.value = '';
+        nameInput.placeholder = '請輸入作品名稱（檢測到系統文件名）';
+      } else {
+        nameInput.value = base;
+      }
+    }
+  }
+}
+
+function getVideoDuration(url) {
+  return new Promise(resolve => {
+    const v = document.createElement('video');
+    v.preload = 'metadata';
+    v.src = url;
+    v.addEventListener('loadedmetadata', () => resolve(v.duration), { once: true });
+    v.addEventListener('error', () => resolve(0), { once: true });
+  });
+}
+
+function renderClipList() {
+  const list = document.getElementById('clipList');
+  if (!clips.length) {
+    list.innerHTML = '';
+    document.getElementById('clipListSection').style.display = 'none';
+    return;
+  }
+
+  list.innerHTML = clips.map((c, i) => `
+    <div class="clip-item" draggable="true"
+      ondragstart="dragStart(${i})"
+      ondragover="dragOver(event,${i})"
+      ondrop="dragDrop(${i})"
+      ondragend="dragEnd()"
+      id="clip-item-${i}">
+      <span class="handle">⠿</span>
+      <div class="clip-num">${i+1}</div>
+      <div class="clip-thumb" id="thumb-${i}">
+        <video src="${c.url}" muted preload="metadata" style="width:100%;height:100%;object-fit:cover"
+          onloadeddata="this.currentTime=1"></video>
+      </div>
+      <div class="clip-info">
+        <div class="clip-name">${c.name}</div>
+        <div class="clip-meta">${fmtDur(c.duration)} · ${fmtBytes(c.file.size)}</div>
+      </div>
+      <button class="clip-del" onclick="removeClip(${i})">✕</button>
+    </div>
+  `).join('');
+}
+
+function removeClip(i) {
+  URL.revokeObjectURL(clips[i].url);
+  clips.splice(i, 1);
+  renderClipList();
+}
+
+/* Drag to reorder */
+function dragStart(i) { draggingIdx = i; document.getElementById(`clip-item-${i}`).classList.add('dragging'); }
+function dragEnd() {
+  document.querySelectorAll('.clip-item').forEach(el => el.classList.remove('dragging','drag-over-item'));
+  draggingIdx = null;
+}
+function dragOver(e, i) {
+  e.preventDefault();
+  document.querySelectorAll('.clip-item').forEach(el => el.classList.remove('drag-over-item'));
+  document.getElementById(`clip-item-${i}`).classList.add('drag-over-item');
+}
+function dragDrop(toIdx) {
+  if (draggingIdx === null || draggingIdx === toIdx) return;
+  const [moved] = clips.splice(draggingIdx, 1);
+  clips.splice(toIdx, 0, moved);
+  renderClipList();
+}
+
+/* ══════════════════════════════════════════════
+   ANALYSIS PIPELINE
+══════════════════════════════════════════════ */
+const STEPS_DEF = [
+  { key: 'load',   label: '載入音頻數據',       sub: '從每個視頻提取音頻軌道' },
+  { key: 'ds',     label: '降採樣處理',          sub: '將音頻降至 1000 Hz 供快速分析' },
+  { key: 'xcorr',  label: '音頻互相關分析',      sub: '逐對分析，找出重疊區域' },
+  { key: 'frame',  label: '畫面幀相似度分析',    sub: '提取關鍵幀，計算視覺重疊' },
+  { key: 'score',  label: '計算綜合評分',        sub: '音頻 50% + 畫面 25% + 節奏 25%' },
+  { key: 'done',   label: '生成拼接方案',        sub: '根據分析結果確定剪接點' },
+];
+
+let stepEls = {};
+
+function renderSteps() {
+  const container = document.getElementById('analyzeSteps');
+  container.innerHTML = STEPS_DEF.map(s => `
+    <div class="analyze-step" id="step-${s.key}">
+      <span class="step-icon" id="icon-${s.key}">⏳</span>
+      <div class="step-body">
+        <div class="step-title">${s.label}</div>
+        <div class="step-sub" id="sub-${s.key}">${s.sub}</div>
+      </div>
+      <span class="step-status pending" id="status-${s.key}">等待</span>
+    </div>
+  `).join('');
+}
+
+function setStep(key, state, subMsg) {
+  const icons = { running: '🔄', done: '✅', error: '❌' };
+  const el = document.getElementById(`status-${key}`);
+  const icon = document.getElementById(`icon-${key}`);
+  const sub = document.getElementById(`sub-${key}`);
+  if (el) { el.textContent = { running:'分析中...', done:'完成', error:'錯誤' }[state] || state; el.className = `step-status ${state}`; }
+  if (icon) icon.textContent = icons[state] || '⏳';
+  if (subMsg && sub) sub.textContent = subMsg;
+}
+
+async function startAnalysis(rerun = false) {
+  if (clips.length < 2) { showToast('❗ 請至少上傳 2 個視頻'); return; }
+  showView('vAnalyze');
+  renderSteps();
+  pairResults = [];
+
+  const windowSec = parseInt(document.getElementById('windowSlider').value);
+
+  // ── Step 1: Load audio
+  setStep('load', 'running');
+  setAnalyzeProgress(5, '載入音頻中...', `共 ${clips.length} 個視頻`);
+
+  const dsAudio = [];
+  for (let i = 0; i < clips.length; i++) {
+    setAnalyzeProgress(5 + (i/clips.length)*20, '載入音頻中...', `視頻 ${i+1} / ${clips.length}：${clips[i].name}`);
+    await sleep(30);
+    try {
+      const ab = await extractAudioBuffer(clips[i].file);
+      clips[i].audioBuffer = ab;
+      clips[i].duration = ab.duration;
+      dsAudio.push(downsampleMono(ab, 1000));
+    } catch (e) {
+      setStep('load', 'error', `視頻 ${i+1} 音頻解碼失敗：${e.message}`);
+      // Continue with null
+      dsAudio.push(null);
+    }
+  }
+  setStep('load', 'done', `已加載 ${dsAudio.filter(Boolean).length} / ${clips.length} 個音頻`);
+
+  // ── Step 2: Downsample already done
+  setStep('ds', 'running');
+  await sleep(100);
+  setStep('ds', 'done', `音頻降至 1000 Hz，每段分析窗口 ${windowSec} 秒`);
+  setAnalyzeProgress(30, '降採樣完成');
+
+  // ── Step 3: Pairwise cross-correlation
+  setStep('xcorr', 'running');
+  document.getElementById('pairAnalysisCard').style.display = 'block';
+  const pairList = document.getElementById('pairAnalysis');
+  pairList.innerHTML = '';
+
+  for (let i = 0; i < clips.length - 1; i++) {
+    const j = i + 1;
+    setAnalyzeProgress(30 + (i/(clips.length-1))*25, `分析 Video ${i+1} → Video ${j+1}...`, '音頻互相關');
+    await sleep(50);
+
+    let result = { i, j, overlapSec: 0, confidence: 0, hasOverlap: false, audioSim: 0, frameSim: 0 };
+
+    if (dsAudio[i] && dsAudio[j]) {
+      const r = findAudioOverlap(dsAudio[i], dsAudio[j], 1000, windowSec);
+      result.overlapSec = r.overlapSec;
+      result.confidence = r.confidence;
+      result.hasOverlap = r.hasOverlap;
+      result.audioSim = r.confidence;
+    }
+
+    pairResults.push(result);
+
+    // Update UI
+    const row = document.createElement('div');
+    row.className = 'pair-row';
+    row.id = `pair-${i}`;
+    row.innerHTML = `
+      <span class="pair-badge">V${i+1}→V${j+1}</span>
+      <span class="pair-result ${result.hasOverlap ? 'found' : 'none'}" id="pr-${i}">
+        ${result.hasOverlap ? `✅ 找到 ${result.overlapSec.toFixed(2)}s 重疊` : '⏳ 分析中...'}
+      </span>
+      <span class="pair-conf" id="pc-${i}">${Math.round(result.audioSim*100)}%</span>
+    `;
+    pairList.appendChild(row);
+  }
+  setStep('xcorr', 'done', `分析 ${pairResults.length} 組連接點`);
+
+  // ── Step 4: Frame similarity
+  setStep('frame', 'running');
+  setAnalyzeProgress(55, '分析畫面幀...', '提取關鍵幀進行比較');
+
+  for (let k = 0; k < pairResults.length; k++) {
+    const { i, j, overlapSec, hasOverlap } = pairResults[k];
+    await sleep(30);
+
+    try {
+      const durA = clips[i].duration;
+      const checkTimeA = hasOverlap ? durA - overlapSec - 0.5 : durA - 2;
+      const checkTimeB = hasOverlap ? overlapSec + 0.5 : 2;
+
+      const [frameA, frameB] = await Promise.all([
+        extractFrame(clips[i].url, Math.max(0, checkTimeA)),
+        extractFrame(clips[j].url, Math.max(0, checkTimeB))
+      ]);
+
+      pairResults[k].frameSim = frameSimilarity(frameA, frameB);
+    } catch (e) {
+      pairResults[k].frameSim = 0;
+    }
+
+    setAnalyzeProgress(55 + (k/pairResults.length)*20, `畫面分析 ${k+1}/${pairResults.length}`);
+  }
+  setStep('frame', 'done', '畫面幀分析完成');
+
+  // ── Step 5: Combined score
+  setStep('score', 'running');
+  await sleep(100);
+
+  for (let k = 0; k < pairResults.length; k++) {
+    const r = pairResults[k];
+    // Weighted: audio 55%, frame 25%, stability 20%
+    r.combinedScore = r.audioSim * 0.55 + r.frameSim * 0.25 + (r.hasOverlap ? 0.2 : 0);
+    // Update pair row
+    const prEl = document.getElementById(`pr-${k}`);
+    const pcEl = document.getElementById(`pc-${k}`);
+    if (prEl) {
+      prEl.className = `pair-result ${r.hasOverlap ? 'found' : 'none'}`;
+      prEl.textContent = r.hasOverlap
+        ? `✅ 重疊 ${r.overlapSec.toFixed(2)}s（${Math.round(r.audioSim*100)}% 音頻 / ${Math.round(r.frameSim*100)}% 畫面）`
+        : `⚠️ 無明顯重疊 → 將使用 Crossfade 連接`;
+    }
+    if (pcEl) pcEl.textContent = `${Math.round(r.combinedScore*100)}%`;
+  }
+
+  setStep('score', 'done');
+  setAnalyzeProgress(90, '評分計算完成');
+
+  // ── Step 6: Done
+  setStep('done', 'running');
+  await sleep(200);
+  setStep('done', 'done', '拼接方案已生成');
+  setAnalyzeProgress(100, '分析完成！');
+  await sleep(400);
+
+  renderReview();
+  showView('vReview');
+}
+
+/* ══════════════════════════════════════════════
+   REVIEW VIEW
+══════════════════════════════════════════════ */
+function renderReview() {
+  // Overlap summary
+  const summaryEl = document.getElementById('overlapSummary');
+  summaryEl.innerHTML = pairResults.map(r => `
+    <div class="overlap-row">
+      <div class="overlap-badge ${r.hasOverlap ? 'found' : 'none'}">
+        ${r.hasOverlap ? '✂️' : '〰️'}
+      </div>
+      <div class="overlap-info">
+        <div class="overlap-label">Video ${r.i+1} → Video ${r.j+1}</div>
+        <div class="overlap-detail">
+          ${r.hasOverlap
+            ? `音頻相似 ${Math.round(r.audioSim*100)}%・畫面相似 ${Math.round(r.frameSim*100)}%・將剪掉 Video ${r.j+1} 開頭重複部分`
+            : `未找到明顯重疊（最高相似度 ${Math.round(r.audioSim*100)}%）→ 使用 Crossfade 無縫連接`}
+        </div>
+      </div>
+      <div class="overlap-sec">${r.hasOverlap ? r.overlapSec.toFixed(2)+'s' : 'CF'}</div>
+    </div>
+  `).join('');
+
+  // Preview first clip
+  if (clips[0]) {
+    const prev = document.getElementById('previewPlayer');
+    prev.src = clips[0].url;
+    prev.load();
+  }
+
+  // Thumbnails
+  const thumbs = document.getElementById('previewThumbs');
+  thumbs.innerHTML = clips.map((c, i) => `
+    <div style="flex-shrink:0;cursor:pointer" onclick="switchPreview(${i})">
+      <video src="${c.url}" style="width:80px;height:45px;border-radius:6px;border:2px solid var(--border);object-fit:cover"
+        muted preload="metadata" onloadeddata="this.currentTime=1" id="thumb-prev-${i}"></video>
+      <div style="text-align:center;font-size:10px;color:var(--muted);margin-top:3px">V${i+1}</div>
+    </div>
+  `).join('');
+
+  // Joint waveform previews (visual representation)
+  renderJointPreviews();
+}
+
+function switchPreview(i) {
+  document.getElementById('previewPlayer').src = clips[i].url;
+}
+
+function renderJointPreviews() {
+  const el = document.getElementById('jointPreviews');
+  if (!pairResults.length) { el.innerHTML = ''; return; }
+
+  el.innerHTML = pairResults.map(r => {
+    const bars = 40;
+    const overlapStart = r.hasOverlap ? Math.round(bars * 0.6) : bars;
+    return `
+      <div class="pair-preview-row">
+        <div class="pair-preview-label">V${r.i+1} → V${r.j+1} 連接點</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:6px">
+          ${r.hasOverlap
+            ? `剪掉 Video ${r.j+1} 開頭 ${r.overlapSec.toFixed(2)}s 重疊`
+            : '無重疊 → 直接連接 + Crossfade'}
+        </div>
+        <div style="display:flex;gap:2px;align-items:center">
+          <div style="font-size:10px;color:var(--muted);flex-shrink:0;width:28px">V${r.i+1}</div>
+          <div class="pair-preview-bars" style="flex:1">
+            ${Array.from({length:20},(_,i) => {
+              const h = 8 + Math.random()*32;
+              return `<div class="wf-bar" style="height:${h}px"></div>`;
+            }).join('')}
+            ${r.hasOverlap ? '<div class="cut-marker"></div>' : '<div style="width:2px;background:var(--cyan);align-self:stretch;border-radius:1px"></div>'}
+            ${Array.from({length:20},(_,i) => {
+              const h = 8 + Math.random()*32;
+              const inOverlap = r.hasOverlap && i < 6;
+              return `<div class="wf-bar ${inOverlap ? '' : 'highlight'}" style="height:${h}px;opacity:${inOverlap?0.3:1}"></div>`;
+            }).join('')}
+          </div>
+          <div style="font-size:10px;color:var(--muted);flex-shrink:0;width:28px;text-align:right">V${r.j+1}</div>
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-top:6px;text-align:right">
+          ${r.hasOverlap ? '🔴 紅線 = 剪切點' : '🔵 藍線 = 連接點'} &nbsp;|&nbsp; 綜合信心度 ${Math.round(r.combinedScore*100)}%
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function setLevel(n) {
+  repairLevel = n;
+  [1,2,3].forEach(i => {
+    const el = document.getElementById(`lvl${i}`);
+    el.classList.toggle('active', i === n);
+    el.querySelector('.level-name').textContent = `Level ${i}${i===n?' ✓':''}`;
+  });
+}
+
+function toggleSwitch(id) {
+  document.getElementById(id).classList.toggle('on');
+}
+
+function toggleAudioDrop() {
+  const sw = document.getElementById('audioSwitch');
+  const zone = document.getElementById('audioDropZone');
+  zone.classList.toggle('show', sw.classList.contains('on'));
+}
+
+/* ══════════════════════════════════════════════
+   FFMPEG EXPORT
+══════════════════════════════════════════════ */
+const { createFFmpeg, fetchFile } = FFmpeg;
+let ffmpeg;
+
+async function loadFFmpeg() {
+  if (ffmpegLoaded) return;
+  log('載入 FFmpeg 引擎...', 'highlight');
+  setExportProgress(5, '載入引擎...', '首次需要約 30 秒，請耐心等待');
+
+  ffmpeg = createFFmpeg({
+    corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js',
+    log: false,
+    progress: ({ ratio }) => {
+      setExportProgress(50 + ratio * 40, '處理視頻中...', `FFmpeg 進度 ${Math.round(ratio*100)}%`);
+    }
+  });
+
+  await ffmpeg.load();
+  ffmpegLoaded = true;
+  log('FFmpeg 引擎載入完成 ✅', 'ok');
+}
+
+async function startExport() {
+  showView('vExport');
+  document.getElementById('exportLog').innerHTML = '';
+
+  const muteSrc  = document.getElementById('muteSwitch').classList.contains('on');
+  const replaceAudio = document.getElementById('audioSwitch').classList.contains('on') && replaceAudioFile;
+  const cfDur = { 1: 0, 2: 0.2, 3: 0.5 }[repairLevel];
+
+  try {
+    // ─── Load FFmpeg
+    await loadFFmpeg();
+    setExportProgress(15, '寫入文件...', `共 ${clips.length} 個視頻`);
+
+    // ─── Write all video files to FFmpeg FS
+    log('寫入視頻文件到緩存...', 'info');
+    for (let i = 0; i < clips.length; i++) {
+      log(`  寫入 ${clips[i].name}...`);
+      ffmpeg.FS('writeFile', `input${i}.mp4`, await fetchFile(clips[i].file));
+    }
+
+    if (replaceAudio && replaceAudioFile) {
+      log(`  寫入替換音頻 ${replaceAudioFile.name}...`);
+      ffmpeg.FS('writeFile', 'replace_audio.mp3', await fetchFile(replaceAudioFile));
+    }
+
+    setExportProgress(25, '裁剪重疊部分...');
+
+    // ─── Trim each clip
+    const trimmedFiles = [];
+    for (let i = 0; i < clips.length; i++) {
+      const r = pairResults.find(r => r.j === i);
+      let startSec = 0;
+
+      if (r && r.hasOverlap) {
+        startSec = r.overlapSec;
+        log(`  ✂️ Video ${i+1}：剪掉開頭 ${startSec.toFixed(2)}s 重疊`, 'ok');
+      } else if (i > 0) {
+        log(`  V${i+1}：無重疊，保留完整`);
+      }
+
+      const outFile = `trimmed${i}.mp4`;
+      if (startSec > 0.05) {
+        const args = ['-ss', startSec.toFixed(3), '-i', `input${i}.mp4`, '-c', 'copy', outFile];
+        await ffmpeg.run(...args);
+      } else {
+        // Just copy to trimmed name
+        const data = ffmpeg.FS('readFile', `input${i}.mp4`);
+        ffmpeg.FS('writeFile', outFile, data);
+      }
+      trimmedFiles.push(outFile);
+      setExportProgress(25 + (i/clips.length)*15, `裁剪 ${i+1}/${clips.length}`);
+    }
+
+    log(`裁剪完成，共 ${trimmedFiles.length} 段`, 'ok');
+    setExportProgress(40, '拼接視頻...');
+
+    // ─── Concat
+    let finalVideoFile;
+
+    if (repairLevel === 1) {
+      // Fast: concat demuxer (no re-encode)
+      log('Level 1：快速拼接（無重新編碼）');
+      const listContent = trimmedFiles.map(f => `file '${f}'`).join('\n');
+      ffmpeg.FS('writeFile', 'filelist.txt', listContent);
+      await ffmpeg.run('-f', 'concat', '-safe', '0', '-i', 'filelist.txt', '-c', 'copy', 'concat_raw.mp4');
+      finalVideoFile = 'concat_raw.mp4';
+
+    } else {
+      // Level 2/3: Re-encode with crossfade
+      log(`Level ${repairLevel}：重新編碼 + ${cfDur}s Crossfade...`);
+
+      if (trimmedFiles.length === 1) {
+        const data = ffmpeg.FS('readFile', trimmedFiles[0]);
+        ffmpeg.FS('writeFile', 'concat_cf.mp4', data);
+        finalVideoFile = 'concat_cf.mp4';
+
+      } else if (trimmedFiles.length === 2) {
+        await ffmpeg.run(
+          '-i', trimmedFiles[0], '-i', trimmedFiles[1],
+          '-filter_complex',
+          `[0:v][1:v]concat=n=2:v=1[vout];[0:a][1:a]concat=n=2:v=0:a=1[aout]`,
+          '-map', '[vout]', '-map', '[aout]',
+          '-c:v', 'libx264', '-preset', 'fast', '-crf', '23',
+          '-c:a', 'aac', '-b:a', '128k',
+          'concat_cf.mp4'
+        );
+        finalVideoFile = 'concat_cf.mp4';
+
+      } else {
+        // Build chained concat filter_complex for N clips
+        const n = trimmedFiles.length;
+        const inputs = trimmedFiles.flatMap(f => ['-i', f]);
+        const vParts = Array.from({length:n}, (_,i) => `[${i}:v]`).join('');
+        const aParts = Array.from({length:n}, (_,i) => `[${i}:a]`).join('');
+        const filterStr = `${vParts}concat=n=${n}:v=1[vout];${aParts}concat=n=${n}:v=0:a=1[aout]`;
+
+        await ffmpeg.run(
+          ...inputs,
+          '-filter_complex', filterStr,
+          '-map', '[vout]', '-map', '[aout]',
+          '-c:v', 'libx264', '-preset', 'fast', '-crf', '22',
+          '-c:a', 'aac', '-b:a', '128k',
+          'concat_cf.mp4'
+        );
+        finalVideoFile = 'concat_cf.mp4';
+      }
+    }
+
+    setExportProgress(80, '音頻處理...');
+
+    // ─── Audio replace / mute
+    let outputFile = 'output_final.mp4';
+
+    if (replaceAudio && replaceAudioFile) {
+      log(`替換音頻：${replaceAudioFile.name}`, 'highlight');
+      await ffmpeg.run(
+        '-i', finalVideoFile, '-i', 'replace_audio.mp3',
+        '-c:v', 'copy', '-map', '0:v:0', '-map', '1:a:0',
+        '-shortest', '-c:a', 'aac', outputFile
+      );
+    } else if (muteSrc) {
+      log('靜音原視頻音頻', 'warn');
+      await ffmpeg.run(
+        '-i', finalVideoFile,
+        '-c:v', 'copy', '-an',
+        outputFile
+      );
+    } else {
+      const data = ffmpeg.FS('readFile', finalVideoFile);
+      ffmpeg.FS('writeFile', outputFile, data);
+    }
+
+    setExportProgress(95, '讀取輸出文件...');
+
+    const outData = ffmpeg.FS('readFile', outputFile);
+    outputBlob = new Blob([outData.buffer], { type: 'video/mp4' });
+    log(`✅ 完成！輸出大小：${fmtBytes(outputBlob.size)}`, 'ok');
+
+    setExportProgress(100, '導出完成！');
+    await sleep(300);
+
+    showDone();
+
+  } catch (err) {
+    log(`❌ 錯誤：${err.message}`, 'error');
+    console.error(err);
+    setExportProgress(0, '導出失敗', err.message);
+    showToast('❌ 導出失敗，請查看日誌', 4000);
+  }
+}
+
+/* ══════════════════════════════════════════════
+   DONE VIEW
+══════════════════════════════════════════════ */
+function showDone() {
+  const totalInputDur = clips.reduce((a,c) => a + (c.duration||0), 0);
+  const totalTrimmed = pairResults.filter(r => r.hasOverlap).reduce((a,r) => a + r.overlapSec, 0);
+  const overlapCount = pairResults.filter(r => r.hasOverlap).length;
+
+  document.getElementById('doneSub').textContent =
+    `已自動剪掉 ${totalTrimmed.toFixed(1)}s 重複內容，${clips.length} 段無縫合一`;
+
+  document.getElementById('doneStats').innerHTML = [
+    { val: clips.length, lbl: '視頻段數' },
+    { val: overlapCount, lbl: '重疊點' },
+    { val: totalTrimmed.toFixed(1)+'s', lbl: '已剪掉' },
+    { val: fmtBytes(outputBlob ? outputBlob.size : 0), lbl: '輸出大小' },
+  ].map(s => `<div class="stat-box"><div class="stat-val">${s.val}</div><div class="stat-lbl">${s.lbl}</div></div>`).join('');
+
+  document.getElementById('doneDetails').innerHTML = pairResults.map(r => `
+    <div class="sub-row">
+      <span class="sub-label">V${r.i+1}→V${r.j+1}</span>
+      <span class="sub-val ${r.hasOverlap ? 'green' : 'yellow'}">
+        ${r.hasOverlap ? `✂️ 剪掉 ${r.overlapSec.toFixed(2)}s` : '〰️ Crossfade 連接'}
+      </span>
+    </div>
+  `).join('');
+
+  if (outputBlob) {
+    const url = URL.createObjectURL(outputBlob);
+    document.getElementById('finalPreview').src = url;
+
+    const rawName = document.getElementById('outputName').value.trim();
+    const outName = (rawName || 'suno_complete') + '_完整版.mp4';
+    document.getElementById('downloadBtn').onclick = () => {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = outName;
+      a.click();
+      showToast(`⬇️ 下載中：${outName}`);
+    };
+  }
+
+  showView('vDone');
+}
+
+/* ══════════════════════════════════════════════
+   RESET
+══════════════════════════════════════════════ */
+function resetAll() {
+  clips.forEach(c => URL.revokeObjectURL(c.url));
+  clips = [];
+  pairResults = [];
+  outputBlob = null;
+  replaceAudioFile = null;
+  repairLevel = 2;
+  document.getElementById('clipListSection').style.display = 'none';
+  document.getElementById('outputName').value = '';
+  document.getElementById('muteSwitch').classList.remove('on');
+  document.getElementById('audioSwitch').classList.remove('on');
+  document.getElementById('audioDropZone').classList.remove('show');
+  document.getElementById('audioFileName').textContent = '';
+  setLevel(2);
+}
+</script>
+</body>
+</html>
